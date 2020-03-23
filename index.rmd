@@ -51,61 +51,40 @@ The code is slightly changed, some graphs are tweaked. All in all this is suppos
 
 ## Disclaimer
 I am **not** a medical doctor, I am only a data-dude who wants to help citizen data scientist to stay informed and check the numbers we are confronted with every day. 
-If you,  on the other hand, are someone who understands more about epidemiology, feel  free to use all you find here. Remember, most of it is presented in a much better way by Tim Churches.
+If you,  on the other hand, are someone who understands more about epidemiology, feel  free to use all you find here. Remember, most of it is presented in a much better way by Tim Churches. If you feel interested in doing some data analysis yourself and want to add, please feel free, hat what GitHub is for.
 
 
 ## Data Acquisition
-Data are pulled from JHU Git Hub archive <https://raw.githubusercontent.com/CSSEGISandData/>.
+Data are pulled from JHU GitHub archive <https://raw.githubusercontent.com/CSSEGISandData/>. R allows for a fairly easy way to get the data from the GitHub archive. The JHU data are nicely formatted and thus suitable for a quick analysis.
 
-
-```{r read_data, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
-jhu_url = paste("https://raw.githubusercontent.com/CSSEGISandData/",
+```{r readDataFromJHU, echo=TRUE, message=FALSE, warning=FALSE}
+jhuUrl = paste("https://raw.githubusercontent.com/CSSEGISandData/",
                  "COVID-19/master/csse_covid_19_data/", "csse_covid_19_time_series/",
                  "time_series_19-covid-Confirmed.csv", sep = "")
 
-dat =  read_csv(jhu_url) %>% rename(province = "Province/State",
+dat =  read_csv(jhuUrl) %>% rename(province = "Province/State",
                                     country = "Country/Region")
 
-datWorld =  dat %>% pivot_longer(-c(province,country, Lat, Long),
-                          names_to = "Date", 
-                          values_to = "cumulative_cases")
-europe = read_csv2(file =paste0(pathData, "/countriesOfEurope.csv"))
+head(dat)
+```
 
-# consider "Mainland" only for the time beeing
-datEurope = filter(datWorld, country %in% europe$Countries,
-                   (province %in% europe$Countries | is.na(province)))
+As can be seen, the data is in 'wide' format. I will be using the **tidyverse** package a lot, I mean a lot (!!), thus I will reshape the data into 'long' format:
 
-tPop = readRDS(file = paste0(pathData, "/tPop.RDS"))
-cCodes = readRDS(file = paste0(pathData, "/countryCodes.RDS"))
-
-datEurope = datEurope %>% 
-  select (-province) %>% 
-  left_join(., cCodes %>%  select(name, charcode), 
-            by = c("country"="name")) %>% 
-  left_join(., tPop %>% 
-              filter(Year =="2020") %>%
-              select(-Year),
-            by ="charcode") %>% 
-  mutate(Date = mdy(Date), value = value * 1000)
-
-
-datEurope = datEurope %>% filter(cumulative_cases > 100) %>% 
-  group_by(country) %>%
-  group_modify(~{
-    .x$daySince100 = 1:nrow(.x)
-    return(.x)
-  })%>% ungroup()
-
-
+```{r datLOng, echo=TRUE, message=FALSE, warning=FALSE}
 datLong = dat %>%
   filter(country == "Germany") %>%  
   pivot_longer(-c(province,country, Lat, Long),
                names_to = "Date",
                values_to = "cumulative_cases")
+head(datLong)
+```
+
+To get a feeling how the number of infected people is evolving we can visualize the number of cumulative cases quickly. Since exponential growth is expected it makes sense to visualize the log-transformed number of cases.
+
+```{r GermanyFigs, echo=TRUE, message=FALSE, warning=FALSE}
 datLong = datLong %>%
   select(-c(province, Lat, Long)) %>%
-  mutate(Date = mdy(Date))
-datLong = datLong %>%  
+  mutate(Date = mdy(Date)) %>% 
   filter(cumulative_cases != 0) %>%
   mutate(incident_cases = c(0, diff(cumulative_cases)),
          myDay = 1:nrow(.),
@@ -117,60 +96,110 @@ p1 = datLong %>% ggplot(aes(x=Date, y = cumulative_cases)) +
   labs(title = glue("Number of COVID-19 infections in {datLong$country[1]}"),
        subtitle = glue("data ranging from {min(datLong$Date)} to {max(datLong$Date)}")
        ) +
-  theme_lucid()+
-  scale_fill_material_c()
+  theme_lucid()
+
+p2 = datLong %>% ggplot(aes(x=Date, y = log(cumulative_cases))) +
+  geom_line() +
+  geom_point(shape = "x") +
+  labs(title = glue("Number of COVID-19 infections in {datLong$country[1]}"),
+       subtitle = glue("data ranging from {min(datLong$Date)} to {max(datLong$Date)}"),
+       caption = "log scale plot"
+       ) +
+  theme_lucid()
+
+ggplotly(p1)
+
+ggplotly(p2)
+
 ```
 
-For Germany the curve for example looks like this:
 
-```{r echo=FALSE}
-p1
-```
+Some people are interested in the growth of cases after for example the 100th case. In most cases I see those figures with absolute numbers. I think this is kind of misleading. Using the the **wppExplorer** package I was able to obtain the total number of people in each European country.
 
-Some people are interested in the growth of cases after for examople the 100th case. In most cases I see those figures with absolute numbers. I think this is kind of missleading. Using the the **wppExplorer** package I was able to obtain the total number of people in each european country.
 
-### Development of cases in european countries after reaching 100 infections -Only mainland provinces are considered (e.g. only France not St.Martin)
+```{r plotEurope, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+datWorld =  dat %>% pivot_longer(-c(province,country, Lat, Long),
+                          names_to = "Date", 
+                          values_to = "cumulative_cases")
+europe = read_csv2(file =paste0(pathData, "/countriesOfEurope.csv"))
 
-```{r echo=FALSE, warning=FALSE}
+# consider "Mainland" only for the time beeing
+datEurope = filter(datWorld, country %in% europe$Countries)
+
+datEurope = datEurope %>% 
+  mutate(Date = mdy(Date)) %>% 
+  group_by(country, Date) %>% 
+    summarise(sumCumCases = sum(cumulative_cases)) %>% 
+  ungroup() 
+
+
+tPop = readRDS(file = paste0(pathData, "/tPop.RDS"))
+cCodes = readRDS(file = paste0(pathData, "/countryCodes.RDS"))
+
+datEurope = datEurope %>% 
+  left_join(., cCodes %>%  select(name, charcode), 
+            by = c("country"="name")) %>% 
+  left_join(., tPop %>% 
+              filter(Year =="2020") %>%
+              select(-Year),
+            by ="charcode") %>% 
+  mutate(value = value * 1000)
+
+
+datEurope = datEurope %>% filter(sumCumCases > 100) %>% 
+  group_by(country) %>%
+  group_modify(~{
+    .x$daySince100 = 1:nrow(.x)
+    return(.x)
+  })%>% ungroup()
+
+
 (datEurope %>% 
-  ggplot(aes(x= daySince100, y = (cumulative_cases/value)*100, colour = country, group = country) )+
+  ggplot(aes(x= daySince100, y = (sumCumCases/value)*100, colour = country, group = country) )+
            geom_line() +
            labs(x = "Number of days after reaching 100 cases",
-                y =  "Percentage of population per country"
-                ) +
+                y =  "Percentage of population per country",
+                title = "Development of cases in european countries after reaching 100 infections") +
            theme_lucid() +
   scale_colour_flat_d() )%>% ggplotly()
 ```
 
 
+
 ## Implemented Features
-As to this day `r lubridate::today()`only simple models are considered.
+As to this day `r lubridate::today()` only simple models are considered. That means, that no modelling of measures that are undertaken in included. So called 'physical distancing' is not included in any model, yet. I hope I will get to it, or maybe someone can include it ;-).
 
 
 ### Linear modelling
-A simple liner model is fit can easily be fitted to the log-transformed data:
+When assuming exponential growth, it is a good idea to fit a linear model to the log transformed data. Above figure suggests that it is sensible to start modelling somewhere in the middle/end of February.
 
-
-```{r linModel, echo=TRUE}
+```{r linModel, echo=TRUE, message=FALSE, warning=FALSE}
 myLinearModel = lm(log(cumulative_cases) ~ myDay,
                    datLong %>%
                    filter(Date >= as.Date("2020-02-24"))
                    )
 summary(myLinearModel)
-```
-```{r linModelPlot, echo=FALSE}
 linModelDf = broom::tidy(myLinearModel)
 datLong %>% filter(Date >= as.Date("2020-02-24") ) %>%
   ggplot(aes(x=myDay, y= log(cumulative_cases))) +
   geom_smooth(method = lm) +
   geom_point() +
-  labs(title = glue("fitted linear model with  intercept {round(linModelDf$estimate[1],2)} and slope {round(linModelDf$estimate[2],2)}"))+
+  labs(title = glue("fitted linear model with intercept {round(linModelDf$estimate[1],2)} and slope {round(linModelDf$estimate[2],2)}"))+
   theme_lucid()
+```
+The computed slope can be used to compute growth rates (as far as I understood this is called $R_{0}$ in epidemiology). From the above linear model follows 
 
+$R^{\text{linear}}_0=$ `r round(exp(linModelDf$estimate[2]),2)`
+
+Further we can compute things like doubling times, by doing something like $$t_{\text{double}} = \frac{\operatorname{log}\left ( 2 \right ) }{\operatorname{log} \left ( R^{\text{linear}}_0 \right) }$$.
+
+```{r doubleTimes, echo=TRUE, message=FALSE, warning=FALSE}
+log(2)/linModelDf$estimate[2]
 ```
 
-With a linear model crude predictions can be made:
-```{r predictions, message=FALSE, warning=FALSE, include=FALSE}
+And of course we can also make predictions. Please be careful, these are only predictions from a linear model!
+
+```{r predictions, echo=TRUE, message=FALSE, warning=FALSE}
 startDay =  datLong %>%
   filter(Date >= as.Date("2020-02-24")) %>% pull(myDay) %>% min()
 endDay = datLong %>%
@@ -207,8 +236,7 @@ p4 = p1 + geom_ribbon(data = predDF,
            )+
   labs(title = glue("Number of COVID-19 infections in {datLong$country[1]} with a 7 day fit") )+
   theme(legend.title = element_blank())
-```
-```{r picPred, echo=FALSE}
+
 p4 + facet_zoom(xlim= c(endDate, max(predDF$Date)))
 ```
 
