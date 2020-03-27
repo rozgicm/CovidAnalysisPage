@@ -190,6 +190,7 @@ datLong %>% filter(Date >= as.Date("2020-02-24") ) %>%
   labs(title = glue("fitted linear model with intercept {round(linModelDf$estimate[1],2)} and slope {round(linModelDf$estimate[2],2)}"))+
   theme_lucid()
 ```
+
 The computed slope can be used to compute growth rates (as far as I understood this is called $R_{0}$ in epidemiology). From the above linear model follows 
 
 $R^{\text{linear}}_0=$ `r round(exp(linModelDf$estimate[2]),2)`
