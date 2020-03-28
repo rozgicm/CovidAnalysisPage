@@ -254,6 +254,7 @@ A more sophisticated way to model the outbreak can be performed by applying the 
 numPeople = 1000*83149.3
 sirStartDate = min(datLong$Date)
 
+#datLong = datLong %>% filter(Date < as.Date("2020-03-26"))
 
 init = c(S= numPeople - datLong$cumulative_cases[1],
          I = datLong$cumulative_cases[1],
