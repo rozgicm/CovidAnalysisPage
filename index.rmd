@@ -110,10 +110,9 @@ p2 = datLong %>% ggplot(aes(x=Date, y = log(cumulative_cases))) +
        ) +
   theme_lucid()
 
-ggplotly(p1)
+p1 %>% ggplotly(., dynamicTicks = TRUE)
 
-ggplotly(p2)
-
+p2 %>% ggplotly(., dynamicTicks = TRUE)
 ```
 
 
