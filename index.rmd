@@ -58,7 +58,7 @@ If you,  on the other hand, are someone who understands more about epidemiology,
 
 
 ## Data Acquisition
-Data are pulled from JHU GitHub archive <https://raw.githubusercontent.com/CSSEGISandData/>. R allows for a fairly easy way to get the data from the GitHub archive. The JHU data are nicely formatted and thus suitable for a quick analysis.
+Data are pulled from JHU GitHub archive <https://github.com/CSSEGISandData/COVID-19>. R allows for a fairly easy way to get the data from the GitHub archive. The JHU data are nicely formatted and thus suitable for a quick analysis.
 
 ```{r readDataFromJHU, echo=TRUE, message=FALSE, warning=FALSE}
 jhuUrl = paste("https://raw.githubusercontent.com/CSSEGISandData/",
