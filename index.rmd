@@ -178,11 +178,11 @@ When assuming exponential growth, it is a good idea to fit a linear model to the
 ```{r linModel, echo=TRUE, message=FALSE, warning=FALSE}
 myLinearModel = lm(log(cumulative_cases) ~ myDay,
                    datLong %>%
-                   filter(Date >= as.Date("2020-02-24"))
+                   filter(Date >= as.Date("2020-03-20"))
                    )
 summary(myLinearModel)
 linModelDf = broom::tidy(myLinearModel)
-datLong %>% filter(Date >= as.Date("2020-02-24") ) %>%
+datLong %>% filter(Date >= as.Date("2020-03-20") ) %>%
   ggplot(aes(x=myDay, y= log(cumulative_cases))) +
   geom_smooth(method = lm) +
   geom_point() +
@@ -204,15 +204,15 @@ And of course we can also make predictions. Please be careful, these are only pr
 
 ```{r predictions, echo=TRUE, message=FALSE, warning=FALSE}
 startDay =  datLong %>%
-  filter(Date >= as.Date("2020-02-24")) %>% pull(myDay) %>% min()
+  filter(Date >= as.Date("2020-03-20")) %>% pull(myDay) %>% min()
 endDay = datLong %>%
-  filter(Date >= as.Date("2020-02-24")) %>% pull(myDay) %>% max()
+  filter(Date >= as.Date("2020-03-20")) %>% pull(myDay) %>% max()
 
 startDate = datLong %>%
-  filter(Date >= as.Date("2020-02-24")) %>% pull(Date) %>% min()
+  filter(Date >= as.Date("2020-03-20")) %>% pull(Date) %>% min()
 
 endDate = datLong %>%
-  filter(Date >= as.Date("2020-02-24")) %>% pull(Date) %>% max()
+  filter(Date >= as.Date("2020-03-20")) %>% pull(Date) %>% max()
 
 predDF = broom::tidy(predict(myLinearModel,
                              newdata = data.frame(myDay = startDay:(endDay+7)),
@@ -249,6 +249,7 @@ p4 + facet_zoom(xlim= c(endDate, max(predDF$Date)))
 A more sophisticated way to model the outbreak can be performed by applying the SIR-Model
 (**S**usceptible **I**nfectious **R**ecovered). The model is based on an ODE system. See the code and Tim Churches' posts for more details. However, the following can be obtained:
 ```{r include=FALSE, paged.print=TRUE}
+datLong = datLong %>% filter(Date >=  as.Date("2020-03-20"))
 
 numPeople = 1000*83149.3
 sirStartDate = min(datLong$Date)
